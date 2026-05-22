@@ -1,0 +1,28 @@
+{
+  "recommended": [
+    {
+      "id": "minicpm-v:8b",
+      "name": "MiniCPM-V 8B",
+      "size": "5.5GB",
+      "desc": "Excellent for Chinese, fast, recommended first choice"
+    },
+    {
+      "id": "llava:7b",
+      "name": "LLaVA 7B",
+      "size": "4.7GB",
+      "desc": "Classic vision model, good English support"
+    },
+    {
+      "id": "moondream:latest",
+      "name": "Moondream",
+      "size": "1.7GB",
+      "desc": "Ultra lightweight, suitable for low-spec machines"
+    },
+    {
+      "id": "llava:13b",
+      "name": "LLaVA 13B",
+      "size": "8GB",
+      "desc": "Larger model, more accurate recognition"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "vision-bridge",
+  "description": "Let any LLM recognize images through local Ollama vision models",
+  "version": "1.0.0",
+  "author": {
+    "name": "jiale-cheng-ning"
+  },
+  "keywords": ["vision", "image", "ollama", "ocr", "multimodal"],
+  "homepage": "https://github.com/jiale-cheng-ning/vision-bridge"
+}
