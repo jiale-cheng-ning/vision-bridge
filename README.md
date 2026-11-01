@@ -33,6 +33,7 @@ ollama pull moondream       # Ultra lightweight (1.7GB)
 ```bash
 # Clone to Claude Code plugins directory
 git clone https://github.com/jiale-cheng-ning/vision-bridge ~/.claude/plugins/vision-bridge
+python -m pip install -r ~/.claude/plugins/vision-bridge/skills/vision-bridge/scripts/requirements.txt
 ```
 
 ### 4. Use It!
@@ -66,6 +67,11 @@ Claude: [Runs vision-bridge with analysis prompt] The chart shows...
 ```
 
 ## CLI Reference
+
+Images are validated before inference: PNG, JPEG, WEBP, GIF and BMP, up to
+10 MiB and 40 million pixels. Invalid Base64 and damaged images are rejected.
+URL downloads are streamed with the same byte limit, including responses that
+omit Content-Length. For animated images, decoding checks the first frame.
 
 ```bash
 python3 vision.py [options]

@@ -19,6 +19,10 @@ Trigger this skill when:
 
 ## Prerequisites Check
 
+Install the Python dependencies once before running the script:
+`python -m pip install -r scripts/requirements.txt` (relative to this skill directory).
+Images must be PNG, JPEG, WEBP, GIF or BMP, at most 10 MiB and 40 million pixels.
+
 Before using, verify the environment:
 
 ```bash

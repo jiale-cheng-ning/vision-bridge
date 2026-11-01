@@ -4,7 +4,14 @@ import json
 import base64
 import time
 import argparse
+import io
 from pathlib import Path
+
+try:
+    from PIL import Image, UnidentifiedImageError
+except ImportError:
+    print("Error: 'Pillow' library not found. Install it with: pip install Pillow")
+    sys.exit(1)
 
 try:
     import requests
@@ -15,6 +22,9 @@ except ImportError:
 
 class VisionBridge:
     """Bridge between non-vision LLMs and Ollama vision models."""
+
+    MAX_IMAGE_BYTES = 10 * 1024 * 1024
+    MAX_IMAGE_PIXELS = 40_000_000
 
     def __init__(self, model="minicpm-v:8b", ollama_url="http://localhost:11434"):
         self.model = model
@@ -40,7 +50,23 @@ class VisionBridge:
             return False
         # Base64 strings are typically long and contain only base64 chars
         import re
-        return bool(re.match(r'^[A-Za-z0-9+/=]+$', s)) and len(s) > 100
+        return bool(re.fullmatch(r'[A-Za-z0-9+/]*={0,2}', s)) and len(s) % 4 == 0
+
+    def _encode_image(self, data):
+        if not data or len(data) > self.MAX_IMAGE_BYTES:
+            raise ValueError("Image must be nonempty and at most 10 MiB")
+        try:
+            with Image.open(io.BytesIO(data)) as image:
+                if image.format not in {'PNG', 'JPEG', 'WEBP', 'GIF', 'BMP'}:
+                    raise ValueError("Unsupported image format")
+                if image.width * image.height > self.MAX_IMAGE_PIXELS:
+                    raise ValueError("Image exceeds pixel limit")
+                image.verify()
+            with Image.open(io.BytesIO(data)) as image:
+                image.load()
+        except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
+            raise ValueError("Invalid or damaged image") from exc
+        return base64.b64encode(data).decode('ascii')
 
     def _load_from_file(self, file_path):
         """Load image from local file path."""
@@ -49,23 +75,32 @@ class VisionBridge:
             raise FileNotFoundError(f"Image file not found: {file_path}")
 
         with open(path, 'rb') as f:
-            image_data = f.read()
+            image_data = f.read(self.MAX_IMAGE_BYTES + 1)
 
-        return base64.b64encode(image_data).decode('utf-8')
+        return self._encode_image(image_data)
 
     def _load_from_url(self, url):
         """Download image from URL and encode to base64."""
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
-        return base64.b64encode(response.content).decode('utf-8')
+        with requests.get(url, timeout=30, stream=True) as response:
+            response.raise_for_status()
+            if int(response.headers.get('Content-Length', 0)) > self.MAX_IMAGE_BYTES:
+                raise ValueError("Image exceeds 10 MiB limit")
+            data = bytearray()
+            for chunk in response.iter_content(chunk_size=65536):
+                data.extend(chunk)
+                if len(data) > self.MAX_IMAGE_BYTES:
+                    raise ValueError("Image exceeds 10 MiB limit")
+            return self._encode_image(bytes(data))
 
     def _validate_base64(self, b64_string):
         """Validate and return base64 string."""
         try:
-            base64.b64decode(b64_string)
-            return b64_string
-        except Exception:
-            raise ValueError("Invalid base64 string or unsupported image source")
+            if len(b64_string) > 4 * ((self.MAX_IMAGE_BYTES + 2) // 3):
+                raise ValueError("Image exceeds 10 MiB limit")
+            data = base64.b64decode(b64_string, validate=True)
+        except (ValueError, base64.binascii.Error) as exc:
+            raise ValueError("Invalid or oversized base64 image") from exc
+        return self._encode_image(data)
 
     def _call_ollama(self, image_b64, prompt, timeout=120, retries=3):
         """Call Ollama Vision API with retry logic."""

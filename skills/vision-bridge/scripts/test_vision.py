@@ -24,6 +24,14 @@ class TestVisionBridgeInit:
 
 
 import base64
+import io
+from PIL import Image
+
+
+def png_bytes():
+    output = io.BytesIO()
+    Image.new('RGB', (2, 2), 'red').save(output, format='PNG')
+    return output.getvalue()
 
 
 class TestImageLoading:
@@ -33,9 +41,7 @@ class TestImageLoading:
     def test_load_from_file(self, tmp_path):
         """Test loading image from local file."""
         # Create a minimal PNG file (1x1 pixel)
-        png_data = base64.b64decode(
-            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-        )
+        png_data = png_bytes()
         img_path = tmp_path / "test.png"
         img_path.write_bytes(png_data)
 
@@ -45,19 +51,21 @@ class TestImageLoading:
         # Verify it's valid base64
         base64.b64decode(result)
 
-    def test_load_from_url(self):
+    @patch('vision.requests.get')
+    def test_load_from_url(self, mock_get):
         """Test loading image from URL."""
         url = "https://httpbin.org/image/png"
-        try:
-            result = self.bridge._load_image(url)
-            assert result is not None
-            assert len(result) > 0
-        except Exception:
-            pytest.skip("Network not available")
+        response = MagicMock()
+        response.headers = {}
+        data = png_bytes()
+        response.iter_content.return_value = [data]
+        mock_get.return_value.__enter__.return_value = response
+        result = self.bridge._load_image(url)
+        assert base64.b64decode(result) == data
 
     def test_load_base64_string(self):
         """Test passing base64 string directly."""
-        b64 = base64.b64encode(b"fake image data").decode()
+        b64 = base64.b64encode(png_bytes()).decode()
         result = self.bridge._load_image(b64)
         assert result == b64
 
